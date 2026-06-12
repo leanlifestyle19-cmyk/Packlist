@@ -374,10 +374,55 @@ ul,ol{list-style:none}
   .fab-float{right:calc(50% - 280px + 20px)}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ── ONBOARDING ──────────────────────────────────────── */
+#screen-onboard{position:fixed;inset:0;z-index:900;
+  background:var(--bg);padding-bottom:0;display:none;flex-direction:column}
+#screen-onboard.active{display:flex}
+.ob-slides{flex:1;overflow:hidden;position:relative}
+.ob-slide{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:40px 32px 32px;text-align:center;color:#fff;
+  transition:transform .4s cubic-bezier(.4,0,.2,1)}
+.ob-illustration{font-size:88px;margin-bottom:28px;
+  filter:drop-shadow(0 8px 24px rgba(0,0,0,0.18));
+  animation:ob-float 3s ease-in-out infinite}
+@keyframes ob-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.ob-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;
+  font-weight:700;line-height:1.2;margin-bottom:12px}
+.ob-body{font-size:16px;opacity:0.88;line-height:1.6;max-width:300px}
+.ob-footer{padding:24px 24px calc(24px + var(--safe-bottom));
+  display:flex;flex-direction:column;gap:16px;align-items:center;
+  background:var(--bg-card)}
+.ob-dots{display:flex;gap:8px;align-items:center}
+.ob-dot{width:8px;height:8px;border-radius:50%;
+  background:var(--border);transition:all .3s;cursor:pointer}
+.ob-dot.active{width:24px;border-radius:4px;background:var(--accent)}
+.ob-btn-row{display:flex;gap:10px;width:100%}
+.ob-btn{flex:1;padding:15px;border-radius:var(--radius-sm);
+  font-size:16px;font-weight:700;cursor:pointer;border:none;transition:all .18s}
+.ob-btn-primary{background:var(--accent);color:#fff}
+.ob-btn-ghost{background:var(--bg-subtle);color:var(--text-3);
+  border:1.5px solid var(--border);font-size:14px;flex:0 0 auto;padding:15px 20px}
+.ob-skip{font-size:13px;color:var(--text-muted);padding:4px 8px;
+  background:none;border:none;cursor:pointer}
 </style>
 </head>
 <body>
 <div id="app">
+
+  <!-- ONBOARDING -->
+  <div id="screen-onboard" class="screen">
+    <div class="ob-slides" id="ob-slides-wrap"></div>
+    <div class="ob-footer">
+      <div class="ob-dots" id="ob-dots"></div>
+      <div class="ob-btn-row">
+        <button class="ob-btn ob-btn-ghost" id="ob-back-btn" onclick="obPrev()" style="display:none">← Back</button>
+        <button class="ob-btn ob-btn-primary" id="ob-next-btn" onclick="obNext()">Next →</button>
+      </div>
+      <button class="ob-skip" id="ob-skip-btn" onclick="completeOnboarding()">Skip intro</button>
+    </div>
+  </div>
 
   <!-- HOME -->
   <div id="screen-home" class="screen active">
@@ -441,6 +486,16 @@ ul,ol{list-style:none}
 
 <!-- TOAST -->
 <div id="toast-container"></div>
+
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">How to use PackList 🎒</div>
+    <div id="help-modal-content"></div>
+    <button class="btn btn-primary btn-full" style="margin-top:16px" onclick="closeHelpModal()">Got it! 👍</button>
+  </div>
+</div>
 
 <!-- DELETE MODAL -->
 <div class="modal-overlay" id="delete-modal">
@@ -530,6 +585,98 @@ function toolkitBannerHTML(currentApp) {
     </div>
   </div>`;
 }
+
+/* ══════════════════════════════════════════════════════
+   ONBOARDING
+══════════════════════════════════════════════════════ */
+const OB_SLIDES = [
+  { grad:'linear-gradient(160deg,#1665C0,#0698A0)', icon:'🎒',
+    title:'Welcome to PackList',
+    body:'Smart packing lists for every trip. Never leave home without the essentials again.' },
+  { grad:'linear-gradient(160deg,#1B5E20,#00695C)', icon:'📋',
+    title:'Pick a Template',
+    body:'Choose from 8 ready-made lists — Beach, Business, Ski, Camping and more. Already filled with what you need.' },
+  { grad:'linear-gradient(160deg,#E65100,#F57F17)', icon:'✅',
+    title:'Pack and Check Off',
+    body:'Tap any item to mark it packed. Watch your progress bar fill up as you go.' },
+  { grad:'linear-gradient(160deg,#AD1457,#6A1B9A)', icon:'✏️',
+    title:'Make It Yours',
+    body:'Tap any item name to edit it. Change quantities, rename items, or add your own.' },
+];
+
+let obIndex = 0;
+
+function renderOnboarding(){
+  const wrap=document.getElementById('ob-slides-wrap');
+  const dots=document.getElementById('ob-dots');
+  const backBtn=document.getElementById('ob-back-btn');
+  const nextBtn=document.getElementById('ob-next-btn');
+  const skipBtn=document.getElementById('ob-skip-btn');
+  const isLast=obIndex===OB_SLIDES.length-1;
+  wrap.innerHTML=OB_SLIDES.map((s,i)=>`
+    <div class="ob-slide" style="background:${s.grad};transform:translateX(${(i-obIndex)*100}%)">
+      <div class="ob-illustration">${s.icon}</div>
+      <div class="ob-title">${s.title}</div>
+      <div class="ob-body">${s.body}</div>
+    </div>`).join('');
+  dots.innerHTML=OB_SLIDES.map((_,i)=>
+    `<div class="ob-dot ${i===obIndex?'active':''}" onclick="obGoTo(${i})"></div>`).join('');
+  backBtn.style.display=obIndex>0?'':'none';
+  nextBtn.textContent=isLast?'🚀 Let\'s Go!':'Next →';
+  skipBtn.style.display=isLast?'none':'';
+}
+function obNext(){if(obIndex<OB_SLIDES.length-1){obIndex++;renderOnboarding();}else completeOnboarding();}
+function obPrev(){if(obIndex>0){obIndex--;renderOnboarding();}}
+function obGoTo(i){obIndex=i;renderOnboarding();}
+
+async function completeOnboarding(){
+  await Settings.set('onboarded',true);
+  document.getElementById('screen-onboard').classList.remove('active');
+  navigate('home',{},false);
+}
+async function replayIntro(){
+  await Settings.set('onboarded',false);
+  obIndex=0;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-onboard').classList.add('active');
+  renderOnboarding();
+}
+async function checkOnboarded(){
+  const rec=await Settings.get('onboarded').catch(()=>null);
+  if(rec&&rec.value){navigate('home',{},false);}
+  else{
+    obIndex=0;
+    document.getElementById('screen-onboard').classList.add('active');
+    document.getElementById('screen-home').classList.remove('active');
+    renderOnboarding();
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   HELP MODAL
+══════════════════════════════════════════════════════ */
+function openHelpModal(){
+  const steps=[
+    {icon:'➕',title:'Create a list',       desc:'Tap +, choose a template (e.g. Beach, Business), then tap Create.'},
+    {icon:'✅',title:'Check items off',     desc:'Tap the circle next to each item as you pack it.'},
+    {icon:'✏️',title:'Edit an item',        desc:'Tap the item name to change it — e.g. rename "Underwear x3" to "Underwear x5".'},
+    {icon:'➕',title:'Add your own items',  desc:'Type at the bottom of any category and tap + to add it.'},
+    {icon:'🗂️',title:'Add a category',     desc:'Scroll to the bottom and tap Add Category.'},
+    {icon:'📦',title:'Filter your list',    desc:'Tap Unpacked to see only what\'s left to pack.'},
+    {icon:'📤',title:'Share your list',     desc:'Tap the share icon at the top right to send your list to others.'},
+  ];
+  document.getElementById('help-modal-content').innerHTML=steps.map(s=>`
+    <div style="display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--bg-subtle);
+        display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${s.icon}</div>
+      <div>
+        <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:2px">${s.title}</div>
+        <div style="font-size:13px;color:var(--text-3);line-height:1.5">${s.desc}</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('help-modal').classList.add('show');
+}
+function closeHelpModal(){document.getElementById('help-modal').classList.remove('show');}
 
 const TEMPLATES = {
   beach: {
@@ -1513,9 +1660,7 @@ function closeShareModal() {
    SETTINGS SCREEN
 ══════════════════════════════════════════════════════ */
 async function renderSettings() {
-  const root  = document.getElementById('settings-root');
-  const lists = await Lists.getAll();
-
+  const root = document.getElementById('settings-root');
   root.innerHTML = `
   <div class="settings-group">
     <div class="settings-label">Appearance</div>
@@ -1524,30 +1669,25 @@ async function renderSettings() {
         <div class="settings-row-title">Dark Mode</div>
         <div class="settings-row-sub">Switch to dark theme</div>
       </div>
-      <div class="toggle ${state.darkMode ? 'on' : ''}" onclick="toggleDarkMode()"></div>
+      <div class="toggle ${state.darkMode?'on':''}" onclick="toggleDarkMode()"></div>
     </div>
   </div>
 
   <div class="settings-group">
-    <div class="settings-label">Backup</div>
-    <div style="color:var(--text-3);font-size:13px;padding:4px 0 12px;line-height:1.6">
-      Export a list as JSON to back up or share with a travel companion.
-    </div>
-    ${lists.map(l => `
-    <div class="settings-row">
+    <div class="settings-label">Help</div>
+    <div class="settings-row" style="cursor:pointer" onclick="openHelpModal()">
       <div class="settings-row-left">
-        <div class="settings-row-title">${esc(l.name)}</div>
-        <div class="settings-row-sub">${TEMPLATES[l.template]?.label || 'Custom'}</div>
+        <div class="settings-row-title">How to use PackList</div>
+        <div class="settings-row-sub">Step-by-step guide</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="exportList('${l.id}')">Export</button>
-    </div>`).join('')}
-    <div style="margin-top:12px">
-      <label style="display:flex;align-items:center;justify-content:center;gap:8px;
-        border:2px dashed var(--border);border-radius:var(--radius);
-        padding:20px;cursor:pointer;color:var(--text-3);font-weight:600;">
-        📥 Import List
-        <input type="file" accept=".json" style="display:none" onchange="handleImport(this)">
-      </label>
+      <span style="color:var(--text-muted);font-size:18px">→</span>
+    </div>
+    <div class="settings-row" style="cursor:pointer" onclick="replayIntro()">
+      <div class="settings-row-left">
+        <div class="settings-row-title">Replay Intro</div>
+        <div class="settings-row-sub">Watch the intro slides again</div>
+      </div>
+      <span style="color:var(--text-muted);font-size:18px">→</span>
     </div>
   </div>
 
@@ -1557,7 +1697,7 @@ async function renderSettings() {
       <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:700;color:var(--accent)">PackList 🎒</div>
       <div style="font-size:13px;color:var(--text-3);margin-top:4px">Version 1.0.0 · Smart packing for every trip</div>
       <div style="font-size:13px;color:var(--text-3);margin-top:8px;line-height:1.6">
-        8 built-in templates: Beach, Business, Ski, Camping, City Break, Weekend, Tropical, and blank. All data stored on your device — fully offline.
+        Everything stays on your device. No accounts needed, works without internet.
       </div>
     </div>
   </div>`;
@@ -1645,7 +1785,7 @@ async function init() {
   await openDB();
   await loadTheme();
   registerSW();
-  navigate('home', {}, false);
+  await checkOnboarded();
 }
 
 init().catch(console.error);
