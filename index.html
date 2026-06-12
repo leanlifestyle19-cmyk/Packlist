@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" id="themeColorMeta" content="#1665C0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PackList">
+<meta name="description" content="Smart packing lists for every trip">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Inter:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>PackList</title>
+<style>
+/* ── RESET ───────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;-webkit-text-size-adjust:100%}
+body{height:100%;font-family:'Inter',sans-serif;font-size:15px;line-height:1.5;
+  background:var(--bg);color:var(--text);transition:background .25s,color .25s;
+  overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font:inherit;color:inherit;border:none;background:none;outline:none}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+ul,ol{list-style:none}
+
+/* ── TOKENS ──────────────────────────────────────────── */
+:root{
+  --bg:#F0F9FF;--bg-card:#FFFFFF;--bg-subtle:#EBF5FF;
+  --text:#061826;--text-2:#2D5F7C;--text-3:#5B8FA8;--text-muted:#8BAEC0;
+  --border:rgba(22,101,192,0.12);--accent:#1665C0;--teal:#0698A0;
+  --green:#2E7D32;--red:#C62828;--amber:#E65100;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+  --shadow:0 2px 12px rgba(6,24,38,0.08);
+  --shadow-lg:0 8px 32px rgba(6,24,38,0.14);
+  --nav-h:64px;--header-h:56px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+[data-theme="dark"]{
+  --bg:#061826;--bg-card:#0D2340;--bg-subtle:#0D2E4E;
+  --text:#E1F5FE;--text-2:#90CAE0;--text-3:#5B8FA8;--text-muted:#3D6E8A;
+  --border:rgba(77,184,200,0.12);--accent:#4DB8C8;--teal:#4DB8C8;
+  --shadow:0 2px 12px rgba(0,0,0,0.3);--shadow-lg:0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* ── GRADIENTS ───────────────────────────────────────── */
+.grad-ocean {background:linear-gradient(135deg,#1665C0,#0698A0)}
+.grad-sunset{background:linear-gradient(135deg,#E65100,#F57F17)}
+.grad-forest{background:linear-gradient(135deg,#1B5E20,#00695C)}
+.grad-rose  {background:linear-gradient(135deg,#AD1457,#C2185B)}
+.grad-gold  {background:linear-gradient(135deg,#F57F17,#FFB300)}
+.grad-slate {background:linear-gradient(135deg,#263238,#546E7A)}
+.grad-purple{background:linear-gradient(135deg,#4527A0,#7B1FA2)}
+.grad-sky   {background:linear-gradient(135deg,#0277BD,#00838F)}
+
+/* ── LAYOUT ──────────────────────────────────────────── */
+#app{display:flex;flex-direction:column;min-height:100%;position:relative}
+.screen{display:none;flex-direction:column;flex:1;
+  padding-bottom:calc(var(--nav-h) + var(--safe-bottom));
+  min-height:100dvh}
+.screen.active{display:flex}
+.scroll-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ── HEADER ──────────────────────────────────────────── */
+.app-header{
+  position:sticky;top:0;z-index:100;height:var(--header-h);
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+  background:var(--bg);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.header-back{width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg-subtle);color:var(--text-2);flex-shrink:0}
+.header-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;
+  font-weight:700;color:var(--text);flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-actions{display:flex;gap:8px;flex-shrink:0}
+.header-icon-btn{width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg-subtle);color:var(--text-2)}
+
+/* ── BOTTOM NAV ──────────────────────────────────────── */
+#bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  height:calc(var(--nav-h) + var(--safe-bottom));
+  padding-bottom:var(--safe-bottom);
+  background:var(--bg-card);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-around;
+  box-shadow:0 -4px 20px rgba(6,24,38,0.06);
+}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:3px;padding:8px 0;color:var(--text-muted);transition:color .2s;
+  font-size:11px;font-weight:500}
+.nav-item.active{color:var(--accent)}
+.nav-item svg{width:22px;height:22px}
+.nav-fab{
+  width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--teal));
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(22,101,192,0.35);
+  flex-shrink:0;margin-top:-16px;transition:transform .2s;
+}
+.nav-fab:active{transform:scale(0.94)}
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;
+  gap:7px;border-radius:var(--radius-sm);padding:12px 20px;
+  font-size:15px;font-weight:600;cursor:pointer;transition:all .18s;border:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:active{filter:brightness(0.9)}
+.btn-ghost{background:var(--bg-subtle);color:var(--text-2);
+  border:1.5px solid var(--border)}
+.btn-danger{background:#FFEBEE;color:#C62828}
+[data-theme="dark"] .btn-danger{background:#2D0A0A;color:#EF9A9A}
+.btn-full{width:100%;display:flex}
+.btn-sm{padding:8px 14px;font-size:13px}
+
+/* ── FAB FLOAT ───────────────────────────────────────── */
+.fab-float{
+  position:fixed;right:20px;z-index:150;
+  width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--teal));
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(22,101,192,0.4);transition:transform .2s;
+}
+.fab-float:active{transform:scale(0.93)}
+
+/* ── HOME HERO ───────────────────────────────────────── */
+.home-hero{min-height:190px;color:#fff;display:flex;
+  flex-direction:column;justify-content:flex-end;overflow:hidden;position:relative}
+.home-hero-content{padding:20px;position:relative;z-index:1}
+.home-greeting{font-size:12px;opacity:0.8;margin-bottom:2px}
+.home-title{font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:24px;font-weight:700;line-height:1.2}
+.home-sub{font-size:13px;opacity:0.8;margin-top:4px}
+.wave-divider{display:block;width:100%;margin-bottom:-2px;position:relative;z-index:1}
+
+/* ── LIST CARD ───────────────────────────────────────── */
+.list-card{
+  position:relative;border-radius:var(--radius-lg);overflow:hidden;
+  min-height:140px;cursor:pointer;color:#fff;box-shadow:var(--shadow-lg);
+}
+.list-card-inner{
+  padding:18px 20px;display:flex;flex-direction:column;
+  justify-content:space-between;min-height:140px;
+  background:linear-gradient(180deg,rgba(0,0,0,0) 20%,rgba(0,0,0,0.4) 100%);
+}
+.list-card-top{display:flex;justify-content:space-between;align-items:flex-start}
+.list-card-template{font-size:28px}
+.list-card-badge{background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);
+  border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.05em}
+.list-card-name{font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:18px;font-weight:700;margin-bottom:8px;line-height:1.2}
+.list-card-progress-wrap{height:5px;background:rgba(255,255,255,0.25);
+  border-radius:3px;overflow:hidden;margin-bottom:5px}
+.list-card-progress-fill{height:100%;background:#fff;border-radius:3px;
+  transition:width .4s ease}
+.list-card-stats{font-size:12px;opacity:0.85}
+
+/* ── PROGRESS BAR ────────────────────────────────────── */
+.progress-wrap{background:var(--bg-subtle);border-radius:20px;
+  height:10px;overflow:hidden}
+.progress-fill{height:100%;
+  background:linear-gradient(90deg,var(--accent),var(--teal));
+  border-radius:20px;transition:width .4s ease}
+
+/* ── CATEGORY SECTION ────────────────────────────────── */
+.category-section{margin-bottom:4px}
+.category-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;cursor:pointer;
+  background:var(--bg);position:sticky;
+  top:calc(var(--header-h));z-index:80;
+  border-bottom:1px solid var(--border);
+}
+.category-icon{font-size:18px;width:28px;text-align:center}
+.category-name{font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:14px;font-weight:700;color:var(--text-2);flex:1}
+.category-count{font-size:12px;color:var(--text-muted);font-weight:500;
+  font-family:'DM Mono',monospace}
+.category-chevron{color:var(--text-muted);font-size:14px;
+  transition:transform .2s;flex-shrink:0}
+.category-chevron.open{transform:rotate(180deg)}
+.category-items{display:flex;flex-direction:column}
+
+/* ── PACK ITEM ───────────────────────────────────────── */
+.pack-item{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 16px 13px 20px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg-card);
+  transition:background .15s;
+}
+.pack-item:last-child{border-bottom:none}
+.pack-item.packed{background:var(--bg-subtle)}
+.pack-checkbox{
+  width:24px;height:24px;border-radius:50%;
+  border:2px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;
+}
+.pack-checkbox.checked{
+  background:var(--green);border-color:var(--green);color:#fff;
+}
+.pack-label{flex:1;font-size:15px;color:var(--text);
+  transition:color .2s;line-height:1.4}
+.pack-label.packed{text-decoration:line-through;color:var(--text-muted)}
+.pack-delete{color:var(--text-muted);padding:4px 6px;
+  font-size:16px;flex-shrink:0;opacity:0;transition:opacity .2s}
+.pack-item:hover .pack-delete{opacity:1}
+.pack-item:active .pack-delete{opacity:1}
+
+/* ── ADD ITEM INLINE ─────────────────────────────────── */
+.add-item-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px 10px 20px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg-card);
+}
+.add-item-input{flex:1;font-size:14px;color:var(--text);
+  padding:6px 0;}
+.add-item-input::placeholder{color:var(--text-muted)}
+.add-item-btn{width:28px;height:28px;border-radius:50%;
+  background:var(--accent);color:#fff;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:18px}
+
+/* ── ADD CATEGORY ROW ────────────────────────────────── */
+.add-category-row{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;background:var(--bg-subtle);
+  border:1.5px dashed var(--border);border-radius:var(--radius-sm);
+  margin:8px 16px;cursor:pointer;color:var(--text-3);
+  font-size:14px;font-weight:500;transition:all .2s;
+}
+.add-category-row:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── FILTER BAR ──────────────────────────────────────── */
+.filter-bar{display:flex;gap:6px;padding:10px 16px;
+  overflow-x:auto;scrollbar-width:none;flex-shrink:0;
+  border-bottom:1px solid var(--border);background:var(--bg-card)}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{padding:6px 14px;border-radius:20px;font-size:13px;
+  font-weight:600;border:1.5px solid var(--border);
+  background:var(--bg-subtle);color:var(--text-3);
+  cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
+.filter-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── TEMPLATE GRID ───────────────────────────────────── */
+.template-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  padding:0 16px}
+.template-card{
+  border-radius:var(--radius);overflow:hidden;cursor:pointer;
+  min-height:90px;display:flex;flex-direction:column;
+  justify-content:flex-end;padding:14px;color:#fff;
+  box-shadow:var(--shadow);transition:transform .2s;
+  border:3px solid transparent;
+}
+.template-card:active{transform:scale(0.97)}
+.template-card.selected{border-color:#fff;
+  box-shadow:0 0 0 3px var(--accent)}
+.template-icon{font-size:28px;margin-bottom:6px}
+.template-name{font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:13px;font-weight:700;line-height:1.2}
+
+/* ── FORMS ───────────────────────────────────────────── */
+.form-section{padding:20px 16px;display:flex;flex-direction:column;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:13px;font-weight:600;color:var(--text-2);
+  text-transform:uppercase;letter-spacing:0.05em}
+.form-input{background:var(--bg-subtle);border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;
+  color:var(--text);width:100%;transition:border-color .2s}
+.form-input:focus{border-color:var(--accent)}
+.form-input::placeholder{color:var(--text-muted)}
+
+/* ── COLOR PICKER ────────────────────────────────────── */
+.color-picker{display:flex;gap:10px;flex-wrap:wrap}
+.color-swatch{width:36px;height:36px;border-radius:50%;cursor:pointer;
+  transition:transform .2s,box-shadow .2s;border:3px solid transparent}
+.color-swatch.selected{transform:scale(1.15);
+  box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--accent)}
+
+/* ── SECTION HEADER ──────────────────────────────────── */
+.section-header{font-size:11px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.07em;padding:16px 16px 8px;
+  display:flex;align-items:center;justify-content:space-between}
+
+/* ── EMPTY STATE ─────────────────────────────────────── */
+.empty-state{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:60px 24px;gap:16px;flex:1;text-align:center}
+.empty-icon{font-size:52px;opacity:0.4}
+.empty-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;
+  font-weight:700;color:var(--text-2)}
+.empty-sub{font-size:14px;color:var(--text-3);max-width:240px}
+
+/* ── MODAL ───────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;z-index:500;
+  background:rgba(6,24,38,0.6);backdrop-filter:blur(4px);
+  display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg-card);
+  border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+  width:100%;max-width:560px;
+  padding:20px 20px calc(20px + var(--safe-bottom));
+  box-shadow:var(--shadow-lg);max-height:85dvh;overflow-y:auto}
+.modal-handle{width:36px;height:4px;border-radius:2px;
+  background:var(--border);margin:0 auto 16px}
+.modal-title{font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:18px;font-weight:700;margin-bottom:16px}
+
+/* ── TOAST ───────────────────────────────────────────── */
+#toast-container{position:fixed;
+  bottom:calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  left:50%;transform:translateX(-50%);z-index:999;
+  display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.toast{background:var(--text);color:var(--bg);border-radius:var(--radius-sm);
+  padding:10px 18px;font-size:14px;font-weight:500;
+  box-shadow:var(--shadow-lg);opacity:0;transform:translateY(8px);
+  pointer-events:none;transition:opacity .25s,transform .25s;white-space:nowrap}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── SETTINGS ────────────────────────────────────────── */
+.settings-group{padding:0 16px 8px}
+.settings-label{font-size:11px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.07em;padding:16px 0 6px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-row-left{display:flex;flex-direction:column;gap:2px}
+.settings-row-title{font-size:15px;font-weight:500;color:var(--text)}
+.settings-row-sub{font-size:13px;color:var(--text-3)}
+.toggle{width:48px;height:28px;border-radius:14px;
+  background:var(--border);position:relative;cursor:pointer;
+  transition:background .25s;flex-shrink:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;
+  width:22px;height:22px;border-radius:50%;background:#fff;
+  transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+.toggle.on::after{transform:translateX(20px)}
+
+/* ── LIST HERO ───────────────────────────────────────── */
+.list-hero{position:relative;color:#fff;overflow:hidden;
+  min-height:160px;display:flex;flex-direction:column;justify-content:flex-end}
+.list-hero-content{padding:20px;position:relative;z-index:1}
+.list-hero-name{font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:24px;font-weight:700;margin-bottom:10px}
+.list-hero-progress-wrap{height:6px;background:rgba(255,255,255,0.25);
+  border-radius:3px;overflow:hidden;margin-bottom:5px}
+.list-hero-progress-fill{height:100%;background:#fff;border-radius:3px;
+  transition:width .4s ease}
+.list-hero-stats{font-size:13px;opacity:0.88}
+
+/* ── SHARE TEXT ──────────────────────────────────────── */
+.share-pre{background:var(--bg-subtle);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:14px;font-size:12px;
+  font-family:'DM Mono',monospace;white-space:pre-wrap;word-break:break-all;
+  max-height:200px;overflow-y:auto;color:var(--text-2);margin:12px 0}
+
+/* ── CATEGORY INPUT MODAL ────────────────────────────── */
+#cat-modal-input{background:var(--bg-subtle);border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);padding:12px 14px;font-size:16px;
+  color:var(--text);width:100%;margin-bottom:16px;transition:border-color .2s}
+#cat-modal-input:focus{border-color:var(--accent)}
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media(min-width:600px){
+  .screen{max-width:560px;margin:0 auto}
+  #bottom-nav{justify-content:center;gap:0}
+  #bottom-nav .nav-item{max-width:120px}
+  .fab-float{right:calc(50% - 280px + 20px)}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div class="scroll-body" id="home-scroll"></div>
+  </div>
+
+  <!-- LISTS -->
+  <div id="screen-lists" class="screen">
+    <div class="app-header">
+      <span class="header-title">All Lists</span>
+    </div>
+    <div class="scroll-body" id="lists-scroll"></div>
+  </div>
+
+  <!-- LIST DETAIL -->
+  <div id="screen-list" class="screen">
+    <div id="list-detail-root" style="display:flex;flex-direction:column;flex:1;min-height:0"></div>
+  </div>
+
+  <!-- NEW LIST -->
+  <div id="screen-new-list" class="screen">
+    <div class="app-header">
+      <button class="header-back" onclick="goBack()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <span class="header-title" id="new-list-header">New List</span>
+      <div class="header-actions">
+        <button class="btn btn-primary btn-sm" id="save-list-btn">Create</button>
+      </div>
+    </div>
+    <div class="scroll-body" id="new-list-form"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="screen-settings" class="screen">
+    <div class="app-header">
+      <span class="header-title">Settings</span>
+    </div>
+    <div class="scroll-body" id="settings-root"></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="nav-item active" data-nav="home" onclick="navigate('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-item" data-nav="lists" onclick="navigate('lists')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span>Lists</span>
+    </button>
+    <button class="nav-fab" onclick="navigate('new-list',{editListId:null})">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button class="nav-item" data-nav="settings" onclick="navigate('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="delete-modal-title">Delete?</div>
+    <p style="font-size:14px;color:var(--text-3);margin-bottom:20px" id="delete-modal-body">This cannot be undone.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-full" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger btn-full" id="delete-modal-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="modal-overlay" id="share-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Share List 📤</div>
+    <pre class="share-pre" id="share-pre-text"></pre>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary btn-full" onclick="doShare()">📤 Share</button>
+      <button class="btn btn-ghost btn-full" onclick="closeShareModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CATEGORY MODAL -->
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">New Category</div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px" id="cat-icon-picker"></div>
+      <input id="cat-modal-input" placeholder="Category name e.g. Clothing">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-full" onclick="closeCatModal()">Cancel</button>
+      <button class="btn btn-primary btn-full" onclick="saveCatModal()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════
+   TEMPLATES
+══════════════════════════════════════════════════════ */
+const TEMPLATES = {
+  beach: {
+    label: '🏖️ Beach',
+    color: 'grad-ocean',
+    icon:  '🏖️',
+    categories: {
+      '👔 Clothing':    ['Swimwear x2','Board shorts','T-shirts x3','Cover-up/sarong','Underwear x3','Sandals','Casual sneakers','Light jacket'],
+      '🧴 Toiletries':  ['Sunscreen SPF50+','After-sun lotion','Shampoo','Conditioner','Body wash','Toothbrush & toothpaste','Deodorant','Razor'],
+      '📄 Documents':   ['Passport','Travel insurance','Hotel booking','Flight tickets','Emergency contacts'],
+      '💻 Electronics': ['Phone charger','Power bank','Earphones','Waterproof phone case','Camera'],
+      '🏖️ Beach Gear':  ['Beach towel','Snorkel & mask','Waterproof dry bag','Sunglasses','Hat/cap'],
+      '💊 Health':      ['Insect repellent','Paracetamol','Antihistamine','Seasickness tablets','Plasters'],
+    }
+  },
+  business: {
+    label: '💼 Business',
+    color: 'grad-slate',
+    icon:  '💼',
+    categories: {
+      '👔 Clothing':     ['Dress shirts x3','Suit/blazer','Dress trousers x2','Formal shoes','Belt','Tie x2','Undershirts x3','Casual outfit (evening)'],
+      '🧴 Toiletries':   ['Shaving kit','Toothbrush & toothpaste','Deodorant','Hair products','Cologne/perfume'],
+      '📄 Documents':    ['Passport/ID','Business cards','Laptop','Company documents','Hotel booking','Flight tickets','Expenses cards'],
+      '💻 Electronics':  ['Laptop + charger','Phone charger','Power bank','Universal adapter','USB drive','Presentation clicker'],
+      '💼 Work Gear':    ['Notebook & pens','Portfolio/folder','Name badge holder','Earphones'],
+    }
+  },
+  ski: {
+    label: '⛷️ Ski',
+    color: 'grad-sky',
+    icon:  '⛷️',
+    categories: {
+      '🧥 Clothing':    ['Ski jacket','Ski pants','Base layer tops x3','Base layer bottoms x2','Mid-layer fleece','Ski socks x4','Thermal underwear','Casual après-ski outfit'],
+      '🎿 Ski Gear':    ['Ski boots','Helmet','Ski goggles','Gloves x2','Balaclava/neck warmer','Hand warmers'],
+      '🧴 Toiletries':  ['Lip balm with SPF','Sunscreen SPF50+','Moisturiser','Toothbrush & toothpaste','Deodorant'],
+      '📄 Documents':   ['Passport','Travel insurance (ski cover)','Ski pass','Hotel booking','Flight tickets'],
+      '💊 Health':      ['Pain relief','Knee support','Cold & flu tablets','Plasters','Eye drops'],
+      '💻 Electronics': ['Phone charger','Power bank','Camera','GoPro & mount'],
+    }
+  },
+  camping: {
+    label: '🏕️ Camping',
+    color: 'grad-forest',
+    icon:  '🏕️',
+    categories: {
+      '⛺ Shelter':     ['Tent','Sleeping bag','Sleeping mat/pad','Tarp','Tent pegs & mallet'],
+      '🧥 Clothing':   ['Warm jacket','Rain jacket','Hiking boots','Thermal base layer','Wool socks x4','Cap/beanie','Gloves','Quick-dry pants x2'],
+      '🍳 Cooking':    ['Camp stove','Fuel canister','Cookpot & pan','Utensils set','Lighter & matches','Food supplies','Water bottles x2','Collapsible bowl'],
+      '🧭 Navigation': ['Map & compass','Headlamp + batteries','Whistle','Knife/multi-tool'],
+      '💊 Safety':     ['First aid kit','Insect repellent','Sunscreen','Water purification tabs','Emergency blanket'],
+      '💻 Electronics':['Phone charger','Solar charger/power bank','Camera'],
+    }
+  },
+  city: {
+    label: '🏙️ City Break',
+    color: 'grad-rose',
+    icon:  '🏙️',
+    categories: {
+      '👔 Clothing':   ['Casual outfits x3','Smart-casual outfit','Comfortable walking shoes','Light jacket/cardigan','Underwear x3','Jeans','Pyjamas'],
+      '🧴 Toiletries': ['Toothbrush & toothpaste','Shampoo','Body wash','Deodorant','Skincare routine'],
+      '📄 Documents':  ['Passport/ID','Hotel booking','Flight tickets','Transport card','Local currency'],
+      '💻 Electronics':['Phone charger','Power bank','Camera','Travel adapter'],
+      '🎒 Day Bag':    ['Reusable tote bag','Umbrella','Sunglasses','Guidebook/offline maps'],
+    }
+  },
+  weekend: {
+    label: '🎒 Weekend',
+    color: 'grad-gold',
+    icon:  '🎒',
+    categories: {
+      '👔 Clothing':   ['Outfits x2','Change of underwear','Pyjamas','Casual shoes'],
+      '🧴 Toiletries': ['Toothbrush & toothpaste','Deodorant','Face wash','Moisturiser'],
+      '📄 Documents':  ['ID','Accommodation details','Cash & cards'],
+      '💻 Electronics':['Phone charger','Power bank','Earphones'],
+    }
+  },
+  tropical: {
+    label: '🌴 Tropical',
+    color: 'grad-sunset',
+    icon:  '🌴',
+    categories: {
+      '👔 Clothing':   ['Light cotton shirts x4','Shorts x3','Sundress/linen pants','Swimwear x2','Flip flops','Sandals','Lightweight cardigan (AC)'],
+      '🧴 Toiletries': ['Sunscreen SPF50+','Insect repellent','After-sun','Shampoo','Body wash','Toothbrush & toothpaste','Deodorant'],
+      '📄 Documents':  ['Passport','Visa (if required)','Travel insurance','Hotel booking','Flight tickets','Yellow fever cert (if needed)'],
+      '💊 Health':     ['Malaria tablets','Diarrhoea tablets','Antihistamine','Rehydration salts','Insect bite cream'],
+      '💻 Electronics':['Phone charger','Power bank','Waterproof phone pouch','Camera'],
+      '🌴 Extras':     ['Travel pillow','Mosquito net','Dry bag','Reef-safe sunscreen'],
+    }
+  },
+  blank: {
+    label: '📝 Blank',
+    color: 'grad-slate',
+    icon:  '📝',
+    categories: {}
+  },
+};
+
+const CATEGORY_ICONS = ['👔','🧴','📄','💻','💊','🎒','🍎','⛺','🏖️','🎿','🧥','🍳','🧭','🎭','🛒','✈️','💼','🌴','📦','🏃'];
+
+/* ══════════════════════════════════════════════════════
+   DATABASE
+══════════════════════════════════════════════════════ */
+const DB_NAME = 'packlist';
+const DB_VER  = 1;
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('lists')) {
+        d.createObjectStore('lists', { keyPath: 'id' });
+      }
+      if (!d.objectStoreNames.contains('items')) {
+        const is = d.createObjectStore('items', { keyPath: 'id' });
+        is.createIndex('listId', 'listId');
+      }
+      if (!d.objectStoreNames.contains('settings')) {
+        d.createObjectStore('settings', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+function dbOp(store, mode, fn) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(store, mode);
+    const s   = tx.objectStore(store);
+    const req = fn(s);
+    if (req) {
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror   = e => reject(e.target.error);
+    } else {
+      tx.oncomplete = () => resolve();
+      tx.onerror    = e => reject(e.target.error);
+    }
+  });
+}
+
+const Lists = {
+  getAll: ()    => dbOp('lists','readonly', s => s.getAll()),
+  get:    id    => dbOp('lists','readonly', s => s.get(id)),
+  put:    list  => dbOp('lists','readwrite',s => s.put(list)),
+  delete: id    => dbOp('lists','readwrite',s => s.delete(id)),
+};
+
+const Items = {
+  getAll:  ()    => dbOp('items','readonly', s => s.getAll()),
+  get:     id    => dbOp('items','readonly', s => s.get(id)),
+  put:     item  => dbOp('items','readwrite',s => s.put(item)),
+  delete:  id    => dbOp('items','readwrite',s => s.delete(id)),
+  forList: lid   => new Promise((resolve, reject) => {
+    const tx  = db.transaction('items','readonly');
+    const idx = tx.objectStore('items').index('listId');
+    const req = idx.getAll(lid);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  }),
+};
+
+const Settings = {
+  get: key       => dbOp('settings','readonly', s => s.get(key)),
+  set: (key,val) => dbOp('settings','readwrite',s => s.put({ key, value: val })),
+};
+
+/* ══════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════ */
+const state = {
+  screen:      'home',
+  listId:      null,
+  editListId:  null,
+  filter:      'all',   // 'all' | 'unpacked' | 'packed'
+  collapsed:   {},      // { [category]: true }
+  history:     [],
+  darkMode:    false,
+};
+
+/* ══════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════ */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+
+function today() { return new Date().toISOString().slice(0,10); }
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function sanitize(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+const esc = sanitize;
+
+function gradBg(color) {
+  const map = {
+    'grad-ocean' :'linear-gradient(135deg,#1665C0,#0698A0)',
+    'grad-sunset':'linear-gradient(135deg,#E65100,#F57F17)',
+    'grad-forest':'linear-gradient(135deg,#1B5E20,#00695C)',
+    'grad-rose'  :'linear-gradient(135deg,#AD1457,#C2185B)',
+    'grad-gold'  :'linear-gradient(135deg,#F57F17,#FFB300)',
+    'grad-slate' :'linear-gradient(135deg,#263238,#546E7A)',
+    'grad-purple':'linear-gradient(135deg,#4527A0,#7B1FA2)',
+    'grad-sky'   :'linear-gradient(135deg,#0277BD,#00838F)',
+  };
+  return map[color] || map['grad-ocean'];
+}
+
+/* ══════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════ */
+function showToast(msg, dur = 2600) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className   = 'toast';
+  t.textContent = msg;
+  c.appendChild(t);
+  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, dur);
+}
+
+/* ══════════════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════════════ */
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+  document.getElementById('themeColorMeta').setAttribute('content', dark ? '#061826' : '#1665C0');
+  state.darkMode = dark;
+}
+
+async function loadTheme() {
+  const rec  = await Settings.get('darkMode').catch(() => null);
+  const dark = rec ? rec.value : window.matchMedia('(prefers-color-scheme:dark)').matches;
+  applyTheme(dark);
+}
+
+async function toggleDarkMode() {
+  applyTheme(!state.darkMode);
+  await Settings.set('darkMode', state.darkMode);
+  renderSettings();
+}
+
+/* ══════════════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════════════ */
+function navigate(screen, params = {}, addHistory = true) {
+  if (addHistory && state.screen !== screen) {
+    state.history.push({ screen: state.screen, ...stateSnap() });
+  }
+  state.screen = screen;
+  Object.assign(state, params);
+
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + screen);
+  if (el) {
+    el.classList.add('active');
+    el.querySelector('.scroll-body')?.scrollTo(0,0);
+  }
+  document.querySelectorAll('[data-nav]').forEach(b =>
+    b.classList.toggle('active', b.dataset.nav === screen)
+  );
+
+  const renders = {
+    home:       renderHome,
+    lists:      renderLists,
+    list:       renderList,
+    'new-list': renderNewList,
+    settings:   renderSettings,
+  };
+  (renders[screen] || (() => {}))();
+}
+
+function stateSnap() {
+  return { listId: state.listId, editListId: state.editListId, filter: state.filter };
+}
+
+function goBack() {
+  if (!state.history.length) { navigate('home',{},false); return; }
+  const prev = state.history.pop();
+  navigate(prev.screen, prev, false);
+}
+
+/* ══════════════════════════════════════════════════════
+   HOME SCREEN
+══════════════════════════════════════════════════════ */
+async function renderHome() {
+  const root  = document.getElementById('home-scroll');
+  const lists = await Lists.getAll();
+  const allItems = await Items.getAll();
+
+  let html = `
+  <div class="home-hero grad-ocean">
+    <div class="home-hero-content">
+      <div class="home-greeting">${greeting()} · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
+      <div class="home-title">PackList 🎒</div>
+      <div class="home-sub">Smart packing for every trip</div>
+    </div>
+    <svg class="wave-divider" viewBox="0 0 1440 56" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <path d="M0,32 C240,56 480,8 720,32 C960,56 1200,8 1440,32 L1440,56 L0,56 Z" fill="rgba(255,255,255,0.13)"/>
+      <path d="M0,44 C360,20 720,56 1080,32 C1260,20 1380,40 1440,44 L1440,56 L0,56 Z" fill="rgba(255,255,255,0.09)"/>
+    </svg>
+  </div>`;
+
+  if (lists.length === 0) {
+    html += `<div class="empty-state">
+      <div class="empty-icon">🎒</div>
+      <div class="empty-title">No lists yet</div>
+      <div class="empty-sub">Tap + to create your first packing list from a template</div>
+      <button class="btn btn-primary" onclick="navigate('new-list',{editListId:null})">+ New List</button>
+    </div>`;
+  } else {
+    // Sort: active (least packed) first
+    const sorted = lists.map(l => {
+      const its   = allItems.filter(i => i.listId === l.id);
+      const packed = its.filter(i => i.packed).length;
+      const pct   = its.length ? Math.round((packed / its.length) * 100) : 0;
+      return { ...l, _total: its.length, _packed: packed, _pct: pct };
+    }).sort((a,b) => a._pct - b._pct);
+
+    html += `<div class="section-header">Your Lists</div>
+    <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px">`;
+    sorted.forEach(l => { html += listCardHTML(l, l._packed, l._total, l._pct); });
+    html += `</div>`;
+
+    // Overall stats
+    const totalItems  = allItems.length;
+    const totalPacked = allItems.filter(i => i.packed).length;
+    if (totalItems > 0) {
+      const pct = Math.round((totalPacked/totalItems)*100);
+      html += `<div style="margin:16px 16px 8px;background:var(--bg-card);
+        border-radius:var(--radius);border:1px solid var(--border);padding:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-weight:600;font-size:14px;color:var(--text-2)">Overall Progress</span>
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:var(--accent)">${pct}%</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:6px">${totalPacked} of ${totalItems} items packed across all lists</div>
+      </div>`;
+    }
+  }
+
+  root.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════
+   LISTS SCREEN
+══════════════════════════════════════════════════════ */
+async function renderLists() {
+  const root     = document.getElementById('lists-scroll');
+  const lists    = await Lists.getAll();
+  const allItems = await Items.getAll();
+
+  if (lists.length === 0) {
+    root.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">No lists yet</div>
+      <div class="empty-sub">Tap + to create your first packing list</div>
+    </div>`;
+    return;
+  }
+
+  const sorted = lists.sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+  let html = `<div style="padding:8px 16px 16px;display:flex;flex-direction:column;gap:10px">`;
+  sorted.forEach(l => {
+    const its    = allItems.filter(i => i.listId === l.id);
+    const packed = its.filter(i => i.packed).length;
+    const pct    = its.length ? Math.round((packed/its.length)*100) : 0;
+    html += listCardHTML(l, packed, its.length, pct);
+  });
+  html += `</div>`;
+  root.innerHTML = html;
+}
+
+function listCardHTML(list, packed, total, pct) {
+  const tpl  = TEMPLATES[list.template] || TEMPLATES.blank;
+  const grad = list.color || tpl.color || 'grad-ocean';
+  const bg   = gradBg(grad);
+  const statusLabel = pct === 100 ? 'All packed ✓' : `${pct}%`;
+
+  return `<div class="list-card" style="background:${bg}"
+    onclick="navigate('list',{listId:'${list.id}',filter:'all'})">
+    <div class="list-card-inner">
+      <div class="list-card-top">
+        <span class="list-card-template">${tpl.icon || '🎒'}</span>
+        <span class="list-card-badge">${statusLabel}</span>
+      </div>
+      <div>
+        <div class="list-card-name">${esc(list.name)}</div>
+        <div class="list-card-progress-wrap">
+          <div class="list-card-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="list-card-stats">${packed} of ${total} items packed</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════
+   LIST DETAIL SCREEN
+══════════════════════════════════════════════════════ */
+async function renderList() {
+  const root = document.getElementById('list-detail-root');
+  root.innerHTML = '';
+  if (!state.listId) return;
+
+  const [list, items] = await Promise.all([
+    Lists.get(state.listId),
+    Items.forList(state.listId),
+  ]);
+  if (!list) return;
+
+  const tpl     = TEMPLATES[list.template] || TEMPLATES.blank;
+  const grad    = list.color || tpl.color || 'grad-ocean';
+  const bg      = gradBg(grad);
+  const total   = items.length;
+  const packed  = items.filter(i => i.packed).length;
+  const pct     = total ? Math.round((packed/total)*100) : 0;
+
+  // Filter items
+  let filtered = items;
+  if (state.filter === 'unpacked') filtered = items.filter(i => !i.packed);
+  if (state.filter === 'packed')   filtered = items.filter(i => i.packed);
+
+  // Group by category
+  const categories = {};
+  filtered.forEach(item => {
+    const cat = item.category || 'General';
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(item);
+  });
+
+  // Get all unique categories (including empty ones from the list definition)
+  const allCats = await getListCategories(list.id, items);
+
+  let html = `
+  <div class="app-header">
+    <button class="header-back" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="header-title">${esc(list.name)}</span>
+    <div class="header-actions">
+      <button class="header-icon-btn" onclick="openShareModal('${list.id}')" title="Share">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>
+      <button class="header-icon-btn" onclick="navigate('new-list',{editListId:'${list.id}'})" title="Edit">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="scroll-body" id="list-scroll-body">
+
+  <div class="list-hero" style="background:${bg}">
+    <div class="list-hero-content">
+      <div class="list-hero-name">${esc(list.name)}</div>
+      <div class="list-hero-progress-wrap">
+        <div class="list-hero-progress-fill" style="width:${pct}%"></div>
+      </div>
+      <div class="list-hero-stats">${packed} of ${total} items packed · ${pct}%
+        ${pct === 100 ? ' 🎉 All done!' : ''}
+      </div>
+    </div>
+    <svg viewBox="0 0 1440 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+      preserveAspectRatio="none" style="display:block;width:100%;margin-bottom:-2px">
+      <path d="M0,20 C240,40 480,0 720,20 C960,40 1200,0 1440,20 L1440,40 L0,40 Z"
+        fill="rgba(255,255,255,0.12)"/>
+    </svg>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <div class="filter-chip ${state.filter==='all'?'active':''}" onclick="setFilter('all')">
+      All (${total})
+    </div>
+    <div class="filter-chip ${state.filter==='unpacked'?'active':''}" onclick="setFilter('unpacked')">
+      📦 Unpacked (${total - packed})
+    </div>
+    <div class="filter-chip ${state.filter==='packed'?'active':''}" onclick="setFilter('packed')">
+      ✅ Packed (${packed})
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div style="display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border)">
+    <button class="btn btn-ghost btn-sm" onclick="packAll('${list.id}')">✅ Pack All</button>
+    <button class="btn btn-ghost btn-sm" onclick="unpackAll('${list.id}')">↩️ Unpack All</button>
+  </div>
+
+  <!-- Categories & items -->
+  <div id="categories-container">`;
+
+  allCats.forEach(cat => {
+    const catItems  = filtered.filter(i => (i.category || 'General') === cat);
+    const allCatItems = items.filter(i => (i.category || 'General') === cat);
+    const catPacked = allCatItems.filter(i => i.packed).length;
+    const isCollapsed = state.collapsed[cat];
+    const catIcon = cat.match(/^[\p{Emoji}]/u)?.[0] || '📦';
+
+    html += `
+    <div class="category-section" id="cat-${encodeURIComponent(cat)}">
+      <div class="category-header" onclick="toggleCategory('${esc(cat).replace(/'/g,"\\'")}')">
+        <span class="category-icon">${catIcon}</span>
+        <span class="category-name">${esc(cat)}</span>
+        <span class="category-count">${catPacked}/${allCatItems.length}</span>
+        <span class="category-chevron ${isCollapsed ? '' : 'open'}">▼</span>
+      </div>
+      ${isCollapsed ? '' : `
+      <div class="category-items">
+        ${catItems.length === 0 && state.filter !== 'all'
+          ? `<div style="padding:12px 16px 12px 56px;font-size:13px;color:var(--text-muted)">
+              ${state.filter === 'packed' ? 'Nothing packed here yet.' : 'All items packed! ✅'}
+            </div>`
+          : catItems.map(item => packItemHTML(item)).join('')
+        }
+        <!-- Add item row -->
+        ${state.filter === 'all' ? `
+        <div class="add-item-row">
+          <div style="width:24px"></div>
+          <input class="add-item-input" placeholder="Add item…"
+            data-cat="${esc(cat)}"
+            data-list="${list.id}"
+            onkeydown="if(event.key==='Enter')addItemInline(this)">
+          <button class="add-item-btn"
+            onclick="addItemInline(this.previousElementSibling)">+</button>
+        </div>` : ''}
+      </div>`}
+    </div>`;
+  });
+
+  html += `</div>
+
+  <!-- Add category button -->
+  ${state.filter === 'all' ? `
+  <div class="add-category-row" onclick="openCatModal('${list.id}')">
+    <span style="font-size:18px">➕</span>
+    Add Category
+  </div>` : ''}
+
+  <div style="height:80px"></div>
+  </div>`;
+
+  root.innerHTML = html;
+}
+
+async function getListCategories(listId, items) {
+  // Get all categories from items + any stored in list definition
+  const fromItems = [...new Set(items.map(i => i.category || 'General'))];
+  const list = await Lists.get(listId);
+  const fromList = list?.categoryOrder || [];
+  // Merge, preserving order
+  const all = [...fromList];
+  fromItems.forEach(c => { if (!all.includes(c)) all.push(c); });
+  if (all.length === 0) all.push('General');
+  return all;
+}
+
+function packItemHTML(item) {
+  return `<div class="pack-item ${item.packed ? 'packed' : ''}" id="item-${item.id}">
+    <div class="pack-checkbox ${item.packed ? 'checked' : ''}"
+      onclick="toggleItem('${item.id}')">
+      ${item.packed ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>` : ''}
+    </div>
+    <span class="pack-label ${item.packed ? 'packed' : ''}">${esc(item.text)}</span>
+    <button class="pack-delete" onclick="deleteItem('${item.id}')" title="Delete">✕</button>
+  </div>`;
+}
+
+function setFilter(f) {
+  state.filter = f;
+  renderList();
+}
+
+function toggleCategory(cat) {
+  state.collapsed[cat] = !state.collapsed[cat];
+  renderList();
+}
+
+async function toggleItem(itemId) {
+  const item = await Items.get(itemId);
+  if (!item) return;
+  item.packed = !item.packed;
+  await Items.put(item);
+  // Update DOM directly for speed
+  const el    = document.getElementById(`item-${itemId}`);
+  const check = el?.querySelector('.pack-checkbox');
+  const label = el?.querySelector('.pack-label');
+  if (el) {
+    el.classList.toggle('packed', item.packed);
+    check?.classList.toggle('checked', item.packed);
+    if (check) check.innerHTML = item.packed
+      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>`
+      : '';
+    label?.classList.toggle('packed', item.packed);
+  }
+  // Update hero stats
+  refreshHeroStats();
+}
+
+async function refreshHeroStats() {
+  if (!state.listId) return;
+  const items  = await Items.forList(state.listId);
+  const total  = items.length;
+  const packed = items.filter(i => i.packed).length;
+  const pct    = total ? Math.round((packed/total)*100) : 0;
+  const fill   = document.querySelector('.list-hero-progress-fill');
+  const stats  = document.querySelector('.list-hero-stats');
+  if (fill)  fill.style.width  = pct + '%';
+  if (stats) stats.textContent = `${packed} of ${total} items packed · ${pct}%${pct===100?' 🎉 All done!':''}`;
+  // Update filter chips
+  const chips = document.querySelectorAll('.filter-chip');
+  if (chips[0]) chips[0].textContent = `All (${total})`;
+  if (chips[1]) chips[1].textContent = `📦 Unpacked (${total-packed})`;
+  if (chips[2]) chips[2].textContent = `✅ Packed (${packed})`;
+}
+
+async function deleteItem(itemId) {
+  await Items.delete(itemId);
+  const el = document.getElementById(`item-${itemId}`);
+  if (el) el.remove();
+  await refreshHeroStats();
+  showToast('Item removed');
+}
+
+async function addItemInline(input) {
+  const text = input.value.trim();
+  if (!text) return;
+  const cat    = input.dataset.cat || 'General';
+  const listId = input.dataset.list || state.listId;
+
+  const item = {
+    id: uid(), listId, category: cat,
+    text, packed: false,
+    createdAt: new Date().toISOString()
+  };
+  await Items.put(item);
+  input.value = '';
+
+  // Insert new item before the add-item-row
+  const addRow = input.closest('.add-item-row');
+  const newEl  = document.createElement('div');
+  newEl.innerHTML = packItemHTML(item);
+  const itemEl = newEl.firstElementChild;
+  addRow.parentNode.insertBefore(itemEl, addRow);
+
+  // Re-bind toggle
+  itemEl.querySelector('.pack-checkbox').addEventListener('click', () => toggleItem(item.id));
+  itemEl.querySelector('.pack-delete').addEventListener('click', () => deleteItem(item.id));
+
+  await refreshHeroStats();
+  // Update category count
+  const catSection = document.getElementById(`cat-${encodeURIComponent(cat)}`);
+  if (catSection) {
+    const items = await Items.forList(listId);
+    const catItems = items.filter(i => (i.category||'General') === cat);
+    const catPacked = catItems.filter(i => i.packed).length;
+    const countEl = catSection.querySelector('.category-count');
+    if (countEl) countEl.textContent = `${catPacked}/${catItems.length}`;
+  }
+
+  // Also update categoryOrder in list
+  const list = await Lists.get(listId);
+  if (list && !(list.categoryOrder||[]).includes(cat)) {
+    list.categoryOrder = [...(list.categoryOrder||[]), cat];
+    await Lists.put(list);
+  }
+}
+
+async function packAll(listId) {
+  const items = await Items.forList(listId);
+  for (const item of items) {
+    if (!item.packed) { item.packed = true; await Items.put(item); }
+  }
+  showToast('✅ All items packed!');
+  renderList();
+}
+
+async function unpackAll(listId) {
+  const items = await Items.forList(listId);
+  for (const item of items) {
+    if (item.packed) { item.packed = false; await Items.put(item); }
+  }
+  showToast('↩️ All items unpacked');
+  renderList();
+}
+
+/* ══════════════════════════════════════════════════════
+   ADD CATEGORY MODAL
+══════════════════════════════════════════════════════ */
+let _catModalListId = null;
+let _catIcon        = '📦';
+
+function openCatModal(listId) {
+  _catModalListId = listId;
+  _catIcon        = '📦';
+  const picker = document.getElementById('cat-icon-picker');
+  const input  = document.getElementById('cat-modal-input');
+  input.value  = '';
+  picker.innerHTML = CATEGORY_ICONS.map(ic =>
+    `<span style="font-size:24px;padding:6px;border-radius:8px;cursor:pointer;
+      ${ic === _catIcon ? 'background:var(--bg-subtle);outline:2px solid var(--accent)' : ''}"
+      onclick="selectCatIcon('${ic}',this)">${ic}</span>`
+  ).join('');
+  document.getElementById('cat-modal').classList.add('show');
+  setTimeout(() => input.focus(), 100);
+}
+
+function selectCatIcon(ic, el) {
+  _catIcon = ic;
+  document.querySelectorAll('#cat-icon-picker span').forEach(s => {
+    s.style.background = '';
+    s.style.outline    = '';
+  });
+  el.style.background = 'var(--bg-subtle)';
+  el.style.outline    = '2px solid var(--accent)';
+}
+
+async function saveCatModal() {
+  const input = document.getElementById('cat-modal-input');
+  const name  = input.value.trim();
+  if (!name) { showToast('Enter a category name'); return; }
+  const catName = `${_catIcon} ${name}`;
+
+  const list = await Lists.get(_catModalListId);
+  if (list) {
+    list.categoryOrder = [...(list.categoryOrder||[]), catName];
+    await Lists.put(list);
+  }
+  closeCatModal();
+  renderList();
+  showToast(`${_catIcon} Category added`);
+}
+
+function closeCatModal() {
+  document.getElementById('cat-modal').classList.remove('show');
+}
+
+/* ══════════════════════════════════════════════════════
+   NEW / EDIT LIST
+══════════════════════════════════════════════════════ */
+async function renderNewList() {
+  const root  = document.getElementById('new-list-form');
+  const isNew = !state.editListId;
+  document.getElementById('new-list-header').textContent = isNew ? 'New List' : 'Edit List';
+  document.getElementById('save-list-btn').textContent   = isNew ? 'Create' : 'Save';
+
+  let list = {
+    id: uid(), name: '', template: 'beach',
+    color: 'grad-ocean', categoryOrder: [],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+  };
+  if (!isNew) {
+    const existing = await Lists.get(state.editListId);
+    if (existing) list = { ...existing };
+  }
+
+  let _selectedTemplate = list.template || 'beach';
+  let _selectedColor    = list.color    || 'grad-ocean';
+
+  const colors = ['grad-ocean','grad-sunset','grad-forest','grad-rose','grad-gold','grad-slate','grad-purple','grad-sky'];
+
+  const templateCards = Object.entries(TEMPLATES).map(([key, tpl]) =>
+    `<div class="template-card ${key === _selectedTemplate ? 'selected' : ''}"
+      style="background:${gradBg(tpl.color)}"
+      data-tpl="${key}" onclick="selectTemplate('${key}')">
+      <div class="template-icon">${tpl.icon}</div>
+      <div class="template-name">${tpl.label}</div>
+    </div>`
+  ).join('');
+
+  const colorSwatches = colors.map(c =>
+    `<div class="color-swatch ${c === _selectedColor ? 'selected' : ''}"
+      style="background:${gradBg(c)}" data-color="${c}"
+      onclick="document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+               this.classList.add('selected');
+               document.getElementById('list-color').value='${c}'">
+    </div>`
+  ).join('');
+
+  root.innerHTML = `
+  <div class="form-section">
+    <div class="form-group">
+      <label class="form-label">List Name</label>
+      <input class="form-input" id="list-name" placeholder="e.g. Bali Trip, Business Seoul"
+        value="${esc(list.name)}">
+    </div>
+    ${isNew ? `
+    <div class="form-group">
+      <label class="form-label">Template</label>
+      <div class="template-grid" id="template-grid">${templateCards}</div>
+      <input type="hidden" id="list-template" value="${_selectedTemplate}">
+    </div>` : ''}
+    <div class="form-group">
+      <label class="form-label">Colour</label>
+      <div class="color-picker">${colorSwatches}</div>
+      <input type="hidden" id="list-color" value="${_selectedColor}">
+    </div>
+    ${!isNew ? `
+    <button class="btn btn-danger btn-full"
+      onclick="confirmDelete('list','${list.id}','${esc(list.name).replace(/'/g,"\\'")}')">
+      🗑️ Delete List
+    </button>` : ''}
+  </div>`;
+
+  // Template selector
+  window.selectTemplate = (key) => {
+    _selectedTemplate = key;
+    document.getElementById('list-template').value = key;
+    root.querySelectorAll('.template-card').forEach(c => {
+      c.classList.toggle('selected', c.dataset.tpl === key);
+    });
+    // Auto-set color to match template
+    const tplColor = TEMPLATES[key]?.color || 'grad-ocean';
+    _selectedColor = tplColor;
+    document.getElementById('list-color').value = tplColor;
+    root.querySelectorAll('.color-swatch').forEach(s => {
+      s.classList.toggle('selected', s.dataset.color === tplColor);
+    });
+  };
+
+  // Save
+  document.getElementById('save-list-btn').onclick = async () => {
+    const name     = document.getElementById('list-name').value.trim();
+    const template = document.getElementById('list-template')?.value || list.template || 'blank';
+    const color    = document.getElementById('list-color').value;
+
+    if (!name) { showToast('Please enter a list name'); return; }
+
+    const saved = {
+      ...list, name, template, color,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (isNew) {
+      // Build categoryOrder from template
+      const tpl = TEMPLATES[template] || TEMPLATES.blank;
+      saved.categoryOrder = Object.keys(tpl.categories);
+
+      await Lists.put(saved);
+
+      // Seed items from template
+      for (const [cat, items] of Object.entries(tpl.categories)) {
+        for (const text of items) {
+          await Items.put({
+            id: uid(), listId: saved.id,
+            category: cat, text, packed: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+      showToast('🎒 List created!');
+    } else {
+      await Lists.put(saved);
+      showToast('✅ List updated!');
+    }
+    navigate('list', { listId: saved.id, filter: 'all' });
+  };
+}
+
+/* ══════════════════════════════════════════════════════
+   SHARE MODAL
+══════════════════════════════════════════════════════ */
+let _shareListId = null;
+
+async function openShareModal(listId) {
+  _shareListId = listId;
+  const list  = await Lists.get(listId);
+  const items = await Items.forList(listId);
+  if (!list) return;
+
+  const text = buildShareText(list, items);
+  const pre  = document.getElementById('share-pre-text');
+  pre.textContent = text.slice(0, 600) + (text.length > 600 ? '\n…' : '');
+  window._shareText = text;
+
+  document.getElementById('share-modal').classList.add('show');
+}
+
+function buildShareText(list, items) {
+  const tpl     = TEMPLATES[list.template] || TEMPLATES.blank;
+  const total   = items.length;
+  const packed  = items.filter(i => i.packed).length;
+  const lines   = [];
+
+  lines.push(`🎒 PackList — ${list.name}`);
+  lines.push(`${tpl.icon || '📦'} ${tpl.label || 'Custom List'}`);
+  lines.push(`✅ ${packed} of ${total} items packed`);
+  lines.push('');
+
+  // Group by category
+  const byCategory = {};
+  items.forEach(i => {
+    const c = i.category || 'General';
+    if (!byCategory[c]) byCategory[c] = [];
+    byCategory[c].push(i);
+  });
+
+  Object.entries(byCategory).forEach(([cat, catItems]) => {
+    const catPacked = catItems.filter(i => i.packed).length;
+    lines.push(`${cat} (${catPacked}/${catItems.length})`);
+    catItems.sort((a,b) => Number(b.packed) - Number(a.packed)).forEach(item => {
+      lines.push(`${item.packed ? '☑' : '☐'} ${item.text}`);
+    });
+    lines.push('');
+  });
+
+  lines.push('— Shared via PackList —');
+  return lines.join('\n');
+}
+
+async function doShare() {
+  const text = window._shareText || '';
+  if (navigator.share) {
+    try { await navigator.share({ title: 'My Packing List', text }); return; }
+    catch(e) {}
+  }
+  await navigator.clipboard.writeText(text).catch(() => {});
+  showToast('📋 Copied to clipboard');
+  closeShareModal();
+}
+
+function closeShareModal() {
+  document.getElementById('share-modal').classList.remove('show');
+}
+
+/* ══════════════════════════════════════════════════════
+   SETTINGS SCREEN
+══════════════════════════════════════════════════════ */
+async function renderSettings() {
+  const root  = document.getElementById('settings-root');
+  const lists = await Lists.getAll();
+
+  root.innerHTML = `
+  <div class="settings-group">
+    <div class="settings-label">Appearance</div>
+    <div class="settings-row">
+      <div class="settings-row-left">
+        <div class="settings-row-title">Dark Mode</div>
+        <div class="settings-row-sub">Switch to dark theme</div>
+      </div>
+      <div class="toggle ${state.darkMode ? 'on' : ''}" onclick="toggleDarkMode()"></div>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-label">Backup</div>
+    <div style="color:var(--text-3);font-size:13px;padding:4px 0 12px;line-height:1.6">
+      Export a list as JSON to back up or share with a travel companion.
+    </div>
+    ${lists.map(l => `
+    <div class="settings-row">
+      <div class="settings-row-left">
+        <div class="settings-row-title">${esc(l.name)}</div>
+        <div class="settings-row-sub">${TEMPLATES[l.template]?.label || 'Custom'}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportList('${l.id}')">Export</button>
+    </div>`).join('')}
+    <div style="margin-top:12px">
+      <label style="display:flex;align-items:center;justify-content:center;gap:8px;
+        border:2px dashed var(--border);border-radius:var(--radius);
+        padding:20px;cursor:pointer;color:var(--text-3);font-weight:600;">
+        📥 Import List
+        <input type="file" accept=".json" style="display:none" onchange="handleImport(this)">
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-label">About</div>
+    <div style="padding:16px 0">
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:700;color:var(--accent)">PackList 🎒</div>
+      <div style="font-size:13px;color:var(--text-3);margin-top:4px">Version 1.0.0 · Smart packing for every trip</div>
+      <div style="font-size:13px;color:var(--text-3);margin-top:8px;line-height:1.6">
+        8 built-in templates: Beach, Business, Ski, Camping, City Break, Weekend, Tropical, and blank. All data stored on your device — fully offline.
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════
+   EXPORT / IMPORT
+══════════════════════════════════════════════════════ */
+async function exportList(listId) {
+  const list  = await Lists.get(listId);
+  const items = await Items.forList(listId);
+  if (!list) return;
+  const payload = JSON.stringify({ version: 1, list, items }, null, 2);
+  const blob    = new Blob([payload], { type: 'application/json' });
+  const url     = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = `packlist-${list.name.replace(/\s+/g,'-').toLowerCase()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('💾 List exported!');
+}
+
+async function handleImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data.list || !data.items) { showToast('❌ Invalid file'); return; }
+    const newId = uid();
+    await Lists.put({ ...data.list, id: newId,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    for (const item of data.items) {
+      await Items.put({ ...item, id: uid(), listId: newId });
+    }
+    showToast(`✅ "${data.list.name}" imported!`);
+    navigate('list', { listId: newId, filter: 'all' });
+  } catch(e) {
+    showToast('❌ Could not import file');
+  }
+  input.value = '';
+}
+
+/* ══════════════════════════════════════════════════════
+   DELETE
+══════════════════════════════════════════════════════ */
+function confirmDelete(kind, id, name) {
+  const modal = document.getElementById('delete-modal');
+  document.getElementById('delete-modal-title').textContent = `Delete "${name}"?`;
+  document.getElementById('delete-modal-body').textContent  =
+    'This will permanently delete the list and all its items.';
+  modal.classList.add('show');
+
+  document.getElementById('delete-modal-confirm').onclick = async () => {
+    modal.classList.remove('show');
+    const items = await Items.forList(id);
+    for (const i of items) await Items.delete(i.id);
+    await Lists.delete(id);
+    showToast('🗑️ List deleted');
+    navigate('lists');
+  };
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.remove('show');
+}
+
+/* ══════════════════════════════════════════════════════
+   SERVICE WORKER
+══════════════════════════════════════════════════════ */
+function registerSW() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('[PackList] SW registered'))
+      .catch(e => console.warn('[PackList] SW error:', e));
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════ */
+async function init() {
+  await openDB();
+  await loadTheme();
+  registerSW();
+  navigate('home', {}, false);
+}
+
+init().catch(console.error);
+</script>
+</body>
+  </html>
