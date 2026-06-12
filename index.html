@@ -206,7 +206,8 @@ ul,ol{list-style:none}
   background:var(--green);border-color:var(--green);color:#fff;
 }
 .pack-label{flex:1;font-size:15px;color:var(--text);
-  transition:color .2s;line-height:1.4}
+  transition:color .2s;line-height:1.4;cursor:text;}
+.pack-label:active{color:var(--accent)}
 .pack-label.packed{text-decoration:line-through;color:var(--text-muted)}
 .pack-delete{color:var(--text-muted);padding:4px 6px;
   font-size:16px;flex-shrink:0;opacity:0;transition:opacity .2s}
@@ -1061,9 +1062,52 @@ function packItemHTML(item) {
       onclick="toggleItem('${item.id}')">
       ${item.packed ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>` : ''}
     </div>
-    <span class="pack-label ${item.packed ? 'packed' : ''}">${esc(item.text)}</span>
+    <span class="pack-label ${item.packed ? 'packed' : ''}"
+      title="Tap to edit"
+      onclick="startEditItem('${item.id}', this)">${esc(item.text)}</span>
     <button class="pack-delete" onclick="deleteItem('${item.id}')" title="Delete">✕</button>
   </div>`;
+}
+
+function startEditItem(itemId, labelEl) {
+  // Don't open a second input if one is already open for this item
+  if (labelEl.style.display === 'none') return;
+
+  const input = document.createElement('input');
+  input.value       = labelEl.textContent.trim();
+  input.className   = 'pack-edit-input';
+  input.style.cssText = `
+    flex:1;font-size:15px;color:var(--text);
+    background:var(--bg-subtle);border:1.5px solid var(--accent);
+    border-radius:6px;padding:4px 8px;font-family:inherit;
+    outline:none;min-width:0;
+  `;
+
+  // Hide label, insert input
+  labelEl.style.display = 'none';
+  labelEl.parentNode.insertBefore(input, labelEl.nextSibling);
+  input.focus();
+  input.select();
+
+  async function save() {
+    const newText = input.value.trim();
+    input.remove();
+    labelEl.style.display = '';
+    if (!newText || newText === labelEl.textContent.trim()) return;
+    // Save to DB
+    const item = await Items.get(itemId);
+    if (!item) return;
+    item.text = newText;
+    await Items.put(item);
+    labelEl.textContent = newText;
+    showToast('✅ Updated');
+  }
+
+  input.addEventListener('blur',    save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = labelEl.textContent.trim(); input.blur(); }
+  });
 }
 
 function setFilter(f) {
@@ -1565,4 +1609,4 @@ async function init() {
 init().catch(console.error);
 </script>
 </body>
-  </html>
+</html>
