@@ -1,5 +1,5 @@
 /* PackList Service Worker v1.0 — Cache-first offline support */
-const CACHE = 'packlist-v1';
+const CACHE = 'packlist-v2';
 const SHELL = ['./', './index.html', './manifest.json',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Inter:wght@400;500&family=DM+Mono:wght@400;500&display=swap'];
 
