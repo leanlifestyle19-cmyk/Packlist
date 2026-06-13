@@ -999,9 +999,12 @@ function goBack() {
    HOME SCREEN
 ══════════════════════════════════════════════════════ */
 async function renderHome() {
-  const root  = document.getElementById('home-scroll');
-  const lists = await Lists.getAll();
-  const allItems = await Items.getAll();
+  const root = document.getElementById('home-scroll');
+  root.innerHTML = `<div class="empty-state"><div class="empty-icon">🎒</div><div class="empty-title">Loading…</div></div>`;
+
+  try {
+    const lists    = await Lists.getAll();
+    const allItems = await Items.getAll();
 
   let html = `
   <div class="home-hero grad-ocean">
@@ -1058,6 +1061,15 @@ async function renderHome() {
 
   html += toolkitBannerHTML('packlist');
   root.innerHTML = html;
+
+  } catch(err) {
+    root.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">⚠️</div>
+      <div class="empty-title">Something went wrong</div>
+      <div class="empty-sub" style="font-size:12px">${err.message}</div>
+      <button class="btn btn-primary" onclick="renderHome()">Retry</button>
+    </div>`;
+  }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1086,6 +1098,8 @@ async function renderLists() {
     html += listCardHTML(l, packed, its.length, pct);
   });
   html += `</div>`;
+
+  html += toolkitBannerHTML('packlist');
   root.innerHTML = html;
 }
 
@@ -1662,6 +1676,7 @@ async function renderNewList() {
     }
 
     const template = document.getElementById('list-template')?.value || list.template || 'blank';
+    const saved = {
       ...list, name, template, color,
       updatedAt: new Date().toISOString(),
     };
