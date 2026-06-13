@@ -1918,7 +1918,7 @@ function closeDeleteModal() {
 ══════════════════════════════════════════════════════ */
 function registerSW() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
       .then(() => console.log('[PackList] SW registered'))
       .catch(e => console.warn('[PackList] SW error:', e));
   }
