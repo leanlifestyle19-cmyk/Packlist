@@ -497,6 +497,22 @@ ul,ol{list-style:none}
   </div>
 </div>
 
+<!-- SAVE TEMPLATE MODAL -->
+<div class="modal-overlay" id="save-template-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Save as Template 🔖</div>
+    <p style="font-size:14px;color:var(--text-3);margin-bottom:16px;line-height:1.6">
+      Give it a name you'll recognise — e.g. "Family Trip", "Work Travel". It will appear when you create a new list.
+    </p>
+    <input class="form-input" id="template-name-input" placeholder="e.g. Family Trip" style="margin-bottom:16px">
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-full" onclick="closeSaveTemplateModal()">Cancel</button>
+      <button class="btn btn-primary btn-full" onclick="confirmSaveTemplate()">Save Template</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="modal-overlay" id="delete-modal">
   <div class="modal">
@@ -780,7 +796,7 @@ const CATEGORY_ICONS = ['👔','🧴','📄','💻','💊','🎒','🍎','⛺','
    DATABASE
 ══════════════════════════════════════════════════════ */
 const DB_NAME = 'packlist';
-const DB_VER  = 1;
+const DB_VER  = 2;
 let db = null;
 
 function openDB() {
@@ -797,6 +813,9 @@ function openDB() {
       }
       if (!d.objectStoreNames.contains('settings')) {
         d.createObjectStore('settings', { keyPath: 'key' });
+      }
+      if (!d.objectStoreNames.contains('templates')) {
+        d.createObjectStore('templates', { keyPath: 'id' });
       }
     };
     req.onsuccess = e => { db = e.target.result; resolve(db); };
@@ -843,6 +862,13 @@ const Items = {
 const Settings = {
   get: key       => dbOp('settings','readonly', s => s.get(key)),
   set: (key,val) => dbOp('settings','readwrite',s => s.put({ key, value: val })),
+};
+
+const Templates = {
+  getAll: ()   => dbOp('templates','readonly', s => s.getAll()),
+  get:    id   => dbOp('templates','readonly', s => s.get(id)),
+  put:    t    => dbOp('templates','readwrite',s => s.put(t)),
+  delete: id   => dbOp('templates','readwrite',s => s.delete(id)),
 };
 
 /* ══════════════════════════════════════════════════════
@@ -1131,6 +1157,9 @@ async function renderList() {
     </button>
     <span class="header-title">${esc(list.name)}</span>
     <div class="header-actions">
+      <button class="header-icon-btn" onclick="openSaveTemplateModal('${list.id}')" title="Save as Template">
+        🔖
+      </button>
       <button class="header-icon-btn" onclick="openShareModal('${list.id}')" title="Share">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
       </button>
@@ -1489,8 +1518,25 @@ async function renderNewList() {
 
   let _selectedTemplate = list.template || 'beach';
   let _selectedColor    = list.color    || 'grad-ocean';
+  let _customTemplateId = null;
+
+  // Load saved custom templates
+  const savedTemplates = isNew ? await Templates.getAll() : [];
 
   const colors = ['grad-ocean','grad-sunset','grad-forest','grad-rose','grad-gold','grad-slate','grad-purple','grad-sky'];
+
+  // Custom template cards (shown above built-in if any exist)
+  const customCards = savedTemplates.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(t =>
+    `<div class="template-card" style="background:${gradBg(t.color)};position:relative"
+      data-custom-tpl="${t.id}" onclick="selectCustomTemplate('${t.id}')">
+      <div style="position:absolute;top:6px;right:6px;font-size:11px;
+        background:rgba(255,255,255,0.25);border-radius:10px;padding:2px 7px;font-weight:700">
+        ⭐ Mine
+      </div>
+      <div class="template-icon">🔖</div>
+      <div class="template-name">${esc(t.name)}</div>
+    </div>`
+  ).join('');
 
   const templateCards = Object.entries(TEMPLATES).map(([key, tpl]) =>
     `<div class="template-card ${key === _selectedTemplate ? 'selected' : ''}"
@@ -1520,8 +1566,19 @@ async function renderNewList() {
     ${isNew ? `
     <div class="form-group">
       <label class="form-label">Template</label>
+      ${savedTemplates.length > 0 ? `
+      <div style="font-size:12px;font-weight:700;color:var(--accent);
+        text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">
+        ⭐ My Saved Templates
+      </div>
+      <div class="template-grid" style="margin-bottom:12px">${customCards}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);
+        text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">
+        Built-in Templates
+      </div>` : ''}
       <div class="template-grid" id="template-grid">${templateCards}</div>
       <input type="hidden" id="list-template" value="${_selectedTemplate}">
+      <input type="hidden" id="custom-template-id" value="">
     </div>` : ''}
     <div class="form-group">
       <label class="form-label">Colour</label>
@@ -1538,11 +1595,13 @@ async function renderNewList() {
   // Template selector
   window.selectTemplate = (key) => {
     _selectedTemplate = key;
+    _customTemplateId = null;
     document.getElementById('list-template').value = key;
+    if (document.getElementById('custom-template-id'))
+      document.getElementById('custom-template-id').value = '';
     root.querySelectorAll('.template-card').forEach(c => {
       c.classList.toggle('selected', c.dataset.tpl === key);
     });
-    // Auto-set color to match template
     const tplColor = TEMPLATES[key]?.color || 'grad-ocean';
     _selectedColor = tplColor;
     document.getElementById('list-color').value = tplColor;
@@ -1551,15 +1610,58 @@ async function renderNewList() {
     });
   };
 
+  window.selectCustomTemplate = (id) => {
+    _customTemplateId = id;
+    _selectedTemplate = 'blank';
+    document.getElementById('list-template').value = 'blank';
+    if (document.getElementById('custom-template-id'))
+      document.getElementById('custom-template-id').value = id;
+    // Deselect all built-in cards, select the custom one
+    root.querySelectorAll('.template-card').forEach(c => {
+      c.classList.toggle('selected', c.dataset.customTpl === id);
+    });
+    const tpl = savedTemplates.find(t => t.id === id);
+    if (tpl) {
+      _selectedColor = tpl.color || 'grad-ocean';
+      document.getElementById('list-color').value = _selectedColor;
+      root.querySelectorAll('.color-swatch').forEach(s => {
+        s.classList.toggle('selected', s.dataset.color === _selectedColor);
+      });
+    }
+  };
+
   // Save
   document.getElementById('save-list-btn').onclick = async () => {
     const name     = document.getElementById('list-name').value.trim();
-    const template = document.getElementById('list-template')?.value || list.template || 'blank';
     const color    = document.getElementById('list-color').value;
+    const customId = document.getElementById('custom-template-id')?.value || '';
 
     if (!name) { showToast('Please enter a list name'); return; }
 
-    const saved = {
+    // Custom template path
+    if (isNew && customId) {
+      const tpl = await Templates.get(customId);
+      if (tpl) {
+        const saved = {
+          id: uid(), name, template: 'blank', color,
+          categoryOrder: tpl.categoryOrder || [],
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        };
+        await Lists.put(saved);
+        for (const item of tpl.items) {
+          await Items.put({
+            id: uid(), listId: saved.id,
+            category: item.category, text: item.text,
+            packed: false, createdAt: new Date().toISOString(),
+          });
+        }
+        showToast('🎒 List created from your template!');
+        navigate('list', { listId: saved.id, filter: 'all' });
+        return;
+      }
+    }
+
+    const template = document.getElementById('list-template')?.value || list.template || 'blank';
       ...list, name, template, color,
       updatedAt: new Date().toISOString(),
     };
@@ -1660,7 +1762,9 @@ function closeShareModal() {
    SETTINGS SCREEN
 ══════════════════════════════════════════════════════ */
 async function renderSettings() {
-  const root = document.getElementById('settings-root');
+  const root  = document.getElementById('settings-root');
+  const savedTemplates = await Templates.getAll();
+
   root.innerHTML = `
   <div class="settings-group">
     <div class="settings-label">Appearance</div>
@@ -1671,6 +1775,26 @@ async function renderSettings() {
       </div>
       <div class="toggle ${state.darkMode?'on':''}" onclick="toggleDarkMode()"></div>
     </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-label">My Templates</div>
+    ${savedTemplates.length === 0 ? `
+    <div style="font-size:14px;color:var(--text-muted);padding:8px 0 12px;line-height:1.6">
+      No saved templates yet. Open any list, tap 🔖 in the header to save it as a template.
+    </div>` :
+    savedTemplates.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(t => `
+    <div class="settings-row">
+      <div class="settings-row-left" style="display:flex;align-items:center;gap:10px">
+        <div style="width:28px;height:28px;border-radius:8px;
+          background:${gradBg(t.color)};flex-shrink:0"></div>
+        <div>
+          <div class="settings-row-title">${esc(t.name)}</div>
+          <div class="settings-row-sub">${t.items.length} items</div>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}')">Delete</button>
+    </div>`).join('')}
   </div>
 
   <div class="settings-group">
@@ -1788,6 +1912,64 @@ function registerSW() {
 /* ══════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   CUSTOM TEMPLATES
+══════════════════════════════════════════════════════ */
+let _saveTemplateListId = null;
+
+function openSaveTemplateModal(listId) {
+  _saveTemplateListId = listId;
+  const input = document.getElementById('template-name-input');
+  input.value = '';
+  document.getElementById('save-template-modal').classList.add('show');
+  setTimeout(() => input.focus(), 100);
+}
+
+function closeSaveTemplateModal() {
+  document.getElementById('save-template-modal').classList.remove('show');
+}
+
+async function confirmSaveTemplate() {
+  const name = document.getElementById('template-name-input').value.trim();
+  if (!name) { showToast('Please enter a template name'); return; }
+
+  const items = await Items.forList(_saveTemplateListId);
+  const list  = await Lists.get(_saveTemplateListId);
+
+  // Store items without packed state
+  const templateItems = items.map(i => ({
+    category: i.category || 'General',
+    text:     i.text,
+  }));
+
+  await Templates.put({
+    id:            uid(),
+    name,
+    color:         list?.color || 'grad-ocean',
+    categoryOrder: list?.categoryOrder || [],
+    items:         templateItems,
+    createdAt:     new Date().toISOString(),
+  });
+
+  closeSaveTemplateModal();
+  showToast(`🔖 "${name}" saved as template!`);
+}
+
+async function deleteTemplate(id) {
+  await Templates.delete(id);
+  showToast('Template deleted');
+  renderSettings();
+}
+
+async function renderNewListFromCustomTemplate(templateId) {
+  const tpl = await Templates.get(templateId);
+  if (!tpl) return;
+  // Pre-fill state so renderNewList picks it up
+  state.editListId       = null;
+  state._customTemplate  = tpl;
+  navigate('new-list', { editListId: null });
+}
+
 async function init() {
   await openDB();
   await loadTheme();
