@@ -1985,8 +1985,12 @@ async function renderNewListFromCustomTemplate(templateId) {
 async function init() {
   await openDB();
   await loadTheme();
-  registerSW();
   await checkOnboarded();
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+    .catch(e => console.warn('[SW]', e));
 }
 
 init().catch(console.error);
