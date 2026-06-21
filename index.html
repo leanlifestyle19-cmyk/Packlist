@@ -2001,6 +2001,7 @@ function closeDeleteModal() {
 function registerSW() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+    .then(() => navigator.storage && navigator.storage.persist && navigator.storage.persist())
       .then(() => console.log('[PackList] SW registered'))
       .catch(e => console.warn('[PackList] SW error:', e));
   }
@@ -2149,6 +2150,7 @@ async function init() {
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+    .then(() => navigator.storage && navigator.storage.persist && navigator.storage.persist())
     .catch(e => console.warn('[SW]', e));
 }
 
